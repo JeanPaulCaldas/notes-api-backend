@@ -1,64 +1,64 @@
-const express = require('express')
-const cors = require('cors')
+require('dotenv').config()
+require('./mongo')
 
+const express = require('express')
+const Sentry = require('@sentry/node')
+const Tracing = require('@sentry/tracing')
+const cors = require('cors')
+const Note = require('./models/Note')
+const notFound = require('./middleware/notFound')
+const errorHandle = require('./middleware/errorHandle')
 const app = express()
+
+Sentry.init({
+  dsn: 'https://908b9b8c9ee444d5b826ee6f51edf3d1@o537666.ingest.sentry.io/5655703',
+  integrations: [
+    // enable HTTP calls tracing
+    new Sentry.Integrations.Http({ tracing: true }),
+    // enable Express.js middleware tracing
+    new Tracing.Integrations.Express({ app })
+  ],
+
+  // We recommend adjusting this value in production, or using tracesSampler
+  // for finer control
+  tracesSampleRate: 1.0
+})
+
+// RequestHandler creates a separate execution context using domains, so that every
+// transaction/span/breadcrumb is attached to its own Hub instance
+app.use(Sentry.Handlers.requestHandler())
+// TracingHandler creates a trace for every incoming request
+app.use(Sentry.Handlers.tracingHandler())
+
 app.use(cors())
 app.use(express.json())
 
-app.use((request, response, next) => {
-  console.log(request.method)
-  console.log(request.path)
-  console.log(request.body)
-
-  next()
-})
-
-let notes = [
-  {
-    id: 1,
-    content: 'Nota 1',
-    date: '2020-11-01T19:20:00',
-    important: true
-  },
-  {
-    id: 2,
-    content: 'Nueva nota 2',
-    date: '2020-11-01T19:20:00',
-    important: true
-  },
-  {
-    id: 3,
-    content: 'Nueva nota 3',
-    date: '2020-11-01T19:20:00',
-    important: true
-  }
-]
-
-app.get('/', (request, response) => {
+app.get('/', (_request, response) => {
   response.send('<h1>Hello mundo</h1>')
 })
 
-app.get('/api/notes', (request, response) => {
-  response.json(notes)
+app.get('/api/notes', (_request, response, next) => {
+  Note.find()
+    .then(notes => response.json(notes))
+    .catch(next)
 })
 
-app.get('/api/notes/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const note = notes.find(note => note.id === id)
-  if (note) {
-    response.json(note)
-  } else {
-    response.status(404).end()
-  }
+app.get('/api/notes/:id', (request, response, next) => {
+  const { id } = request.params
+  Note.findById(id)
+    .then(note => note ? response.json(note) : response.status(404).end())
+    .catch(next)
 })
 
-app.delete('/api/notes/:id', (request, response) => {
-  const id = Number(request.params.id)
-  notes = notes.filter(note => note.id !== id)
-  response.status(204).end()
+app.delete('/api/notes/:id', (request, response, next) => {
+  const { id } = request.params
+
+  Note.findByIdAndDelete(id)
+    .then(() => response.status(204).end())
+    .catch(next)
 })
 
-app.post('/api/notes', (request, response) => {
+app.post('/api/notes', (request, response, next) => {
   const note = request.body
 
   if (!note || !note.content) {
@@ -67,21 +67,37 @@ app.post('/api/notes', (request, response) => {
     })
   }
 
-  const ids = notes.map(note => note.id)
-  const maxId = Math.max(...ids)
-  const newNote = {
-    id: maxId + 1,
+  const newNote = new Note({
     content: note.content,
     important: note.important !== 'undefined' ? note.important : false,
     date: new Date().toISOString()
-  }
-  console.log(note)
-  notes = [...notes, newNote]
+  })
 
-  response.status(201).json(newNote)
+  newNote.save()
+    .then(savedNote => response.status(201).json(savedNote))
+    .catch(next)
 })
+
+app.put('/api/notes/:id', (request, response, next) => {
+  const { id } = request.params
+  const note = request.body
+
+  const newNoteInfo = {
+    content: note.content,
+    important: note.important !== 'undefined' ? note.important : false
+  }
+
+  Note.findByIdAndUpdate(id, newNoteInfo, { new: true })
+    .then(result => response.json(result))
+    .catch(next)
+})
+
+app.use(notFound)
+app.use(Sentry.Handlers.errorHandler())
+app.use(errorHandle)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+  console.log(new Date())
 })

@@ -1,0 +1,7 @@
+PUT http://localhost:3001/api/notes/603c54101b3813124ccac011
+Content-Type: application/json
+
+{
+    "content" : "Test Update del Mongo nuevo objeto",
+    "important" : false
+}
