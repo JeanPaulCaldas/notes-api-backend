@@ -1,14 +1,16 @@
 require('dotenv').config()
 require('./mongo')
 
-const express = require('express')
 const Sentry = require('@sentry/node')
 const Tracing = require('@sentry/tracing')
+const express = require('express')
+const app = express()
 const cors = require('cors')
 const Note = require('./models/Note')
 const notFound = require('./middleware/notFound')
 const errorHandle = require('./middleware/errorHandle')
-const app = express()
+
+const usersRouter = require('./controllers/users')
 
 Sentry.init({
   dsn: 'https://908b9b8c9ee444d5b826ee6f51edf3d1@o537666.ingest.sentry.io/5655703',
@@ -92,12 +94,16 @@ app.put('/api/notes/:id', (request, response, next) => {
     .catch(next)
 })
 
+app.use('/api/users', usersRouter)
+
 app.use(notFound)
 app.use(Sentry.Handlers.errorHandler())
 app.use(errorHandle)
 
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
   console.log(new Date())
 })
+
+module.exports = { app, server }
