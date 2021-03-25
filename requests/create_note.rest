@@ -1,7 +1,8 @@
 POST http://localhost:3001/api/notes
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwNWFhNWJjZjBmNjI1MmIxNDRlMTJlNiIsInVzZXJuYW1lIjoiamVhbmNhbGRhcyIsImlhdCI6MTYxNjY1MDY0NX0.n1yG4MUWMQOWJsHyQu00cUeu_zQPimj9UgJ6YXtgiro
 
 {
-    "content" : "Esta nueva nota del 05 de marzo, nota 1",
-    "important" : false
+    "content" : "Utilizando middleware token",
+    "important" : true
 }

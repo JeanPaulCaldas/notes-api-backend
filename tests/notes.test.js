@@ -7,10 +7,16 @@ const { initialNotes, api, getAllNoteContents } = require('./helpers')
 beforeEach(async () => {
   await Note.deleteMany({})
 
-  const note1 = new Note(initialNotes[0])
-  await note1.save()
-  const note2 = new Note(initialNotes[1])
-  await note2.save()
+  // parallel
+  /* const notes = initialNotes.map(note => new Note(note))
+  const promises = notes.map(note => note.save())
+  await Promise.all(promises) */
+
+  // sequential
+  for (const note of initialNotes) {
+    const model = new Note(note)
+    await model.save()
+  }
 })
 
 describe('notes', () => {

@@ -6,11 +6,12 @@ const Tracing = require('@sentry/tracing')
 const express = require('express')
 const app = express()
 const cors = require('cors')
-const Note = require('./models/Note')
 const notFound = require('./middleware/notFound')
 const errorHandle = require('./middleware/errorHandle')
 
 const usersRouter = require('./controllers/users')
+const notesRouter = require('./controllers/notes')
+const loginRouter = require('./controllers/login')
 
 Sentry.init({
   dsn: 'https://908b9b8c9ee444d5b826ee6f51edf3d1@o537666.ingest.sentry.io/5655703',
@@ -39,62 +40,9 @@ app.get('/', (_request, response) => {
   response.send('<h1>Hello mundo</h1>')
 })
 
-app.get('/api/notes', (_request, response, next) => {
-  Note.find()
-    .then(notes => response.json(notes))
-    .catch(next)
-})
-
-app.get('/api/notes/:id', (request, response, next) => {
-  const { id } = request.params
-  Note.findById(id)
-    .then(note => note ? response.json(note) : response.status(404).end())
-    .catch(next)
-})
-
-app.delete('/api/notes/:id', (request, response, next) => {
-  const { id } = request.params
-
-  Note.findByIdAndDelete(id)
-    .then(() => response.status(204).end())
-    .catch(next)
-})
-
-app.post('/api/notes', (request, response, next) => {
-  const note = request.body
-
-  if (!note || !note.content) {
-    return response.status(400).json({
-      error: 'note.content is missing'
-    })
-  }
-
-  const newNote = new Note({
-    content: note.content,
-    important: note.important !== 'undefined' ? note.important : false,
-    date: new Date().toISOString()
-  })
-
-  newNote.save()
-    .then(savedNote => response.status(201).json(savedNote))
-    .catch(next)
-})
-
-app.put('/api/notes/:id', (request, response, next) => {
-  const { id } = request.params
-  const note = request.body
-
-  const newNoteInfo = {
-    content: note.content,
-    important: note.important !== 'undefined' ? note.important : false
-  }
-
-  Note.findByIdAndUpdate(id, newNoteInfo, { new: true })
-    .then(result => response.json(result))
-    .catch(next)
-})
-
+app.use('/api/notes', notesRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/login', loginRouter)
 
 app.use(notFound)
 app.use(Sentry.Handlers.errorHandler())
